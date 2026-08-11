@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Steal Bones — Результаты{% endblock %}
+{% block content %}
+
+<h1 class="sb-page-title">Результаты</h1>
+{% if collection_filter %}
+<p class="sb-page-subtitle">
+  Показаны только результаты последнего сбора: <strong style="color: var(--gold);">{{ collection_filter }}</strong>
+  ({{ wallets | length }} из {{ all_count }} всего в базе) —
+  <a href="{{ url_for('results', network=network_filter, order_by=order_by, order_dir=order_dir) }}">показать всю базу</a>
+</p>
+{% else %}
+<p class="sb-page-subtitle">{{ wallets | length }} уникальных кошельков в базе{% if network_filter %} · сеть: {{ network_filter }}{% endif %}</p>
+{% endif %}
+
+<div class="sb-toolbar">
+  <form method="GET" class="sb-filters">
+    <select name="network" onchange="this.form.submit()">
+      <option value="">Все сети</option>
+      {% for net in networks %}
+      <option value="{{ net }}" {{ 'selected' if net == network_filter else '' }}>{{ network_labels[net] }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="collection" placeholder="коллекция/токен" value="{{ collection_filter or '' }}">
+    <button type="submit" class="sb-btn secondary">Фильтровать</button>
+  </form>
+  <a class="sb-btn" href="{{ url_for('export_excel', network=network_filter, collection=collection_filter) }}">Экспорт в Excel (с фильтром)</a>
+  <a class="sb-btn secondary" href="{{ url_for('export_excel') }}">Скачать всю базу (Excel)</a>
+</div>
+<p class="sb-hint" style="margin-top:-14px; margin-bottom:22px;">
+  «Скачать всю базу» — экспортирует все собранные кошельки без фильтров ({{ all_count }} кошельков).
+</p>
+
+{% macro sort_link(col, label) %}
+{% set next_dir = 'ASC' if (order_by == col and order_dir == 'DESC') else 'DESC' %}
+<a href="{{ url_for('results', network=network_filter, collection=collection_filter, order_by=col, order_dir=next_dir) }}">
+  {{ label }}{% if order_by == col %} {{ '▼' if order_dir == 'DESC' else '▲' }}{% endif %}
+</a>
+{% endmacro %}
+
+{% if wallets %}
+<div class="sb-table-wrap">
+<table class="sb-table">
+  <thead>
+    <tr>
+      <th>{{ sort_link('address', 'Адрес кошелька') }}</th>
+      <th>{{ sort_link('network', 'Сеть') }}</th>
+      <th>{{ sort_link('source_platform', 'Платформа') }}</th>
+      <th>Коллекция</th>
+      <th>Роль</th>
+      <th>Discord</th>
+      <th>Twitter</th>
+      <th>{{ sort_link('first_seen', 'Дата обнаружения') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for w in wallets %}
+    <tr>
+      <td class="sb-mono" style="font-size: 13px;">{{ w.address }}</td>
+      <td style="font-size: 13px;">{{ network_labels.get(w.network, w.network) }}</td>
+      <td style="font-size: 13px;">{{ w.source_platform }}</td>
+      <td style="font-size: 13px;">{{ w.collection_or_token or "—" }}</td>
+      <td>{% if w.role %}<span class="sb-badge {{ w.role }}">{{ w.role }}</span>{% endif %}</td>
+      <td style="font-size: 13px;">{{ w.discord or "—" }}</td>
+      <td style="font-size: 13px;">{{ w.twitter or "—" }}</td>
+      <td class="sb-mono" style="font-size: 13px;">{{ w.first_seen[:16] if w.first_seen else "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="sb-empty">
+  <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.5">
+    <ellipse cx="50" cy="42" rx="30" ry="27"/>
+    <path d="M22 55 Q22 78 32 92 L38 82 L44 92 L50 80 L56 92 L62 82 L68 92 Q78 78 78 55"/>
+    <circle cx="36" cy="40" r="8"/><circle cx="64" cy="40" r="8"/>
+    <path d="M50 46 L45 58 L55 58 Z"/>
+  </svg>
+  <p class="sb-empty-title">Пока пусто</p>
+  <p>Запустите сбор на Панели, чтобы здесь появились кошельки.</p>
+</div>
+{% endif %}
+
+{% endblock %}

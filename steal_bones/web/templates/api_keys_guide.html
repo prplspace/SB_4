@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Steal Bones — Ключи API{% endblock %}
+{% block content %}
+
+<h1 class="sb-page-title">Ключи API</h1>
+<p class="sb-page-subtitle">Как получить доступ к каждому источнику. Сгруппировано по тому, нужна ли вообще регистрация.</p>
+
+<p class="sb-group-title">Без ключа вообще — сразу работает</p>
+
+<details class="sb-accordion" open>
+  <summary><span>Magic Eden <span class="sb-pill no-key">Ключ не нужен</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Публичное чтение бесплатно: 120 запросов/мин для Solana, 30 запросов/мин для Bitcoin Ordinals/Runes. Ничего настраивать не нужно, адаптер работает из коробки.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Solana RPC (баланс) <span class="sb-pill no-key">Ключ не нужен</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Используется публичная нода <code>api.mainnet-beta.solana.com</code>, метод <code>getBalance</code>. Ничего получать не нужно. Если нужен более высокий лимит — заведите бесплатный ключ Helius (см. группу ниже), тогда адаптер сам переключится на него.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>mempool.space (баланс Bitcoin) <span class="sb-pill no-key">Ключ не нужен</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Публичный REST API без регистрации и без строгого документированного лимита.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Ethereum / BNB / Base / Arbitrum / Polygon / Avalanche (баланс) <span class="sb-pill no-key">Ключ не нужен</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Баланс проверяется методом <code>eth_getBalance</code> через официальные публичные RPC каждой сети — регистрация не требуется. Ключ Etherscan V2 (группа ниже) нужен только для ДОПОЛНИТЕЛЬНЫХ данных сверх баланса.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Sui RPC (баланс) <span class="sb-pill no-key">Ключ не нужен</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Публичная fullnode-нода, метод <code>suix_getBalance</code>. Для дополнительных данных — Blockberry (группа ниже).</p>
+  </div>
+</details>
+
+
+<p class="sb-group-title">Нужна бесплатная регистрация</p>
+
+<details class="sb-accordion">
+  <summary><span>Etherscan API V2 <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Зарегистрироваться на <code>etherscan.io</code> (email + пароль), подтвердить почту.</li>
+      <li>В личном кабинете открыть раздел <code>API Keys</code> → <code>Add</code>.</li>
+      <li>Скопировать сгенерированный ключ.</li>
+      <li>Один и тот же ключ работает на 6 сетях сразу (Ethereum/BNB/Base/Arbitrum/Polygon/Avalanche) через параметр <code>chainid</code>.</li>
+    </ol>
+    <p class="sb-hint">Free-тир: 3 запроса/сек, 100 000/день. Часть высоконагруженных сетей может периодически выводиться из free-тира — сверяйте <code>docs.etherscan.io/supported-chains</code> перед стартом. Можно указать несколько ключей через запятую в Настройках — включится ротация (раздел 7.1).</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>OpenSea <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint"><strong>Быстрый вариант:</strong> POST-запрос на <code>api.opensea.io/api/v2/auth/keys</code> без регистрации — вернёт временный ключ на 30 дней (лимит ниже, ~60 запросов/мин на чтение).</p>
+    <p class="sb-hint"><strong>Постоянный вариант:</strong></p>
+    <ol class="sb-steps">
+      <li>Зарегистрироваться на <code>opensea.io</code>.</li>
+      <li>Перейти в <code>Settings → Developer</code>.</li>
+      <li>Заполнить форму запроса ключа.</li>
+      <li>Дождаться одобрения (обычно несколько дней).</li>
+    </ol>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Tensor <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Открыть раздел «API & SDK» в <code>docs.tensor.trade</code>.</li>
+      <li>Заполнить форму запроса доступа (описание проекта).</li>
+      <li>Дождаться ответа с ключом на почту.</li>
+    </ol>
+    <p class="sb-hint">Доступ не самостоятельный — по заявке. Точный GraphQL-запрос для ленты продаж коллекции стоит свериться с документацией, которую пришлют вместе с одобрением (см. TODO в <code>adapters/marketplaces/tensor.py</code>).</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Rarible <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Зайти на <code>rarible.org</code> → «Get Started».</li>
+      <li>Зарегистрироваться, выбрать бесплатный план Starter.</li>
+      <li>В личном кабинете → «API Keys» → «Create Your API Keys».</li>
+      <li>Использовать mainnet-ключ в заголовке <code>X-API-KEY</code>.</li>
+    </ol>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>LooksRare <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Вступить в Developer Discord LooksRare (ссылка в <code>looksrare.dev</code>).</li>
+      <li>Открыть тикет с запросом API-ключа.</li>
+    </ol>
+    <p class="sb-hint">Ключ нужен только для mainnet-запросов (тестовая сеть Sepolia работает без ключа). Лимит — 120 запросов/мин.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Helius <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Зарегистрироваться на <code>helius.dev</code> (email/Google/GitHub).</li>
+      <li>Выбрать план Free (без карты).</li>
+      <li>В дашборде сгенерировать ключ.</li>
+    </ol>
+    <p class="sb-hint">Используется как замена Solscan для дополнительных данных по Solana (токены/NFT на балансе, история) — на момент подготовки этого проекта у Solscan Pro API больше не было самостоятельного бесплатного тарифа (только платная подписка), поэтому основной баланс идёт через RPC, а Helius — для всего остального.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>TronGrid <span class="sb-pill needs-key">Нужен ключ (для повышенного лимита)</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Зарегистрироваться на <code>trongrid.io</code> по email.</li>
+      <li>Подтвердить аккаунт по ссылке из письма.</li>
+      <li>В личном кабинете — «Create API Key».</li>
+      <li>Использовать в заголовке <code>TRON-PRO-API-KEY</code>.</li>
+    </ol>
+    <p class="sb-hint">Базовые запросы проходят и без ключа — регистрация повышает лимит.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Xverse API (Bitcoin Ordinals/Runes) <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Ранее для Ordinals/Runes рекомендовался Hiro Ordinals API, но он выведен из эксплуатации (март 2026) в пользу Xverse. Получить ключ (заголовок <code>x-api-key</code>) — через портал разработчика на <code>docs.xverse.app</code>. Если нужен именно Hiro (для данных Stacks) — бесплатный ключ там тоже выдаётся сразу после регистрации на <code>hiro.so</code>.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Blockberry (Sui) <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Зарегистрироваться в API User Portal на <code>docs.blockberry.one</code>.</li>
+      <li>Ключ генерируется автоматически при создании аккаунта.</li>
+    </ol>
+    <p class="sb-hint">Бесплатный план по умолчанию — до 3 ключей на аккаунт.</p>
+  </div>
+</details>
+
+<details class="sb-accordion">
+  <summary><span>Birdeye <span class="sb-pill needs-key">Нужен ключ</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <ol class="sb-steps">
+      <li>Зарегистрироваться на <code>bds.birdeye.so</code>.</li>
+      <li>Выбрать Free-план (≈30 000 compute units/месяц).</li>
+      <li>Сгенерировать ключ в личном кабинете.</li>
+    </ol>
+    <p class="sb-hint">Основной источник кошельков-трейдеров для мемкоинов (DexScreener этого не умеет — см. вкладку и комментарий в <code>dexscreener.py</code>).</p>
+  </div>
+</details>
+
+
+<p class="sb-group-title">Особый случай</p>
+
+<details class="sb-accordion">
+  <summary><span>Blur <span class="sb-pill special">Официального API нет</span></span><span class="sb-chevron">▶</span></summary>
+  <div class="sb-accordion-body">
+    <p class="sb-hint">Blur не публикует официальный публичный API для сторонних разработчиков. Легальный путь — подключить агрегатор, который уже декодирует её сделки через свой официальный ключ (например Bitquery, бесплатная регистрация на <code>ide.bitquery.io</code>), и написать отдельный адаптер поверх него. Прямая интеграция потребовала бы неофициальных обходных путей — сознательно не реализовано.</p>
+  </div>
+</details>
+
+{% endblock %}
