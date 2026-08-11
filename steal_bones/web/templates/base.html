@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Steal Bones{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+</head>
+<body>
+<div class="sb-shell">
+  <header class="sb-topbar">
+    <div class="sb-brand">
+      <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.5" class="accent">
+        <ellipse cx="50" cy="42" rx="30" ry="27"/>
+        <path d="M22 55 Q22 78 32 92 L38 82 L44 92 L50 80 L56 92 L62 82 L68 92 Q78 78 78 55"/>
+        <circle cx="36" cy="40" r="8"/>
+        <circle cx="64" cy="40" r="8"/>
+        <path d="M50 46 L45 58 L55 58 Z"/>
+      </svg>
+      STEAL BONES
+    </div>
+    <nav class="sb-nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active_page == 'dashboard' else '' }}">Панель</a>
+      <a href="{{ url_for('results') }}" class="{{ 'active' if active_page == 'results' else '' }}">Результаты</a>
+      <a href="{{ url_for('settings_page') }}" class="{{ 'active' if active_page == 'settings' else '' }}">Настройки</a>
+      <a href="{{ url_for('api_keys_guide') }}" class="{{ 'active' if active_page == 'guide' else '' }}">Ключи API</a>
+      <a href="{{ url_for('job_progress') }}" id="sb-job-indicator" class="sb-job-indicator" style="display:none;">
+        <span class="sb-job-dot"></span><span id="sb-job-indicator-text">Идёт сбор…</span>
+      </a>
+    </nav>
+  </header>
+
+  <main class="sb-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="sb-flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script>
+// ДОБАВЛЕНО (восьмой раунд, 09.08.2026, жалоба пользователя: "со страницы
+// 'Идёт сбор' некуда вернуться, если случайно уйти на другую вкладку") —
+// лёгкий индикатор на КАЖДОЙ странице, не только на /job-progress: виден,
+// пока job реально running/paused, ведёт обратно на /job-progress. Опрос
+// раз в 3с — сильно реже, чем 800мс у самой страницы прогресса, это просто
+// фоновый индикатор, а не замена ей.
+(function () {
+  function checkJob() {
+    fetch('/api/job-status').then(function (r) { return r.json(); }).then(function (data) {
+      var el = document.getElementById('sb-job-indicator');
+      if (!el) return;
+      if (data.status === 'running' || data.status === 'paused') {
+        el.style.display = 'inline-flex';
+        var text = data.status === 'paused' ? 'Пауза — ждём лимит…' : ('Идёт сбор… ' + data.percent + '%');
+        document.getElementById('sb-job-indicator-text').textContent = text;
+      } else {
+        el.style.display = 'none';
+      }
+    }).catch(function () {});
+  }
+  checkJob();
+  setInterval(checkJob, 3000);
+})();
+</script>
+</body>
+</html>

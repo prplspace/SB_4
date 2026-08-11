@@ -1,0 +1,8 @@
+*.pyc
+__pycache__/
+*.db
+.env
+pyfiles.txt
+flask.log
+flask_app.log
+steal_bones/db/steal_bones.db

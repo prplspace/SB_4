@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Steal Bones — Настройки{% endblock %}
+{% block content %}
+
+<h1 class="sb-page-title">Настройки</h1>
+<p class="sb-page-subtitle">Ключи Helius и OpenSea сохраняются в базе данных. Как получить каждый — вкладка «Ключи API».</p>
+
+<div class="sb-card">
+  <div class="sb-card-header"><span class="sb-card-title">API-ключи</span></div>
+  <form method="POST" action="{{ url_for('settings_page') }}">
+    {% for field in key_fields %}
+    <div class="sb-field sb-mono-input">
+      <label for="{{ field.name }}">{{ field.label }}{% if field.rotation %} <span class="sb-hint" style="display:inline">(через запятую — для ротации, раздел 7.1)</span>{% endif %}</label>
+      <input type="password" name="{{ field.name }}" id="{{ field.name }}" value="{{ field.value }}" placeholder="{{ field.placeholder }}">
+    </div>
+    {% endfor %}
+    <button type="submit" class="sb-btn">Сохранить ключи</button>
+  </form>
+</div>
+
+<div class="sb-card">
+  <div class="sb-card-header"><span class="sb-card-title">Статус дневных квот</span></div>
+  {% if quota_status %}
+    {% for q in quota_status %}
+    <div class="sb-quota-row">
+      <span class="sb-quota-label">{{ q.source }}</span>
+      <div class="sb-quota-track">
+        <div class="sb-quota-fill {{ 'danger' if q.ratio >= 1 else ('warn' if q.ratio >= 0.9 else '') }}" style="width: {{ (q.ratio * 100) | round(1) }}%"></div>
+      </div>
+      <span class="sb-quota-num">{{ q.used }} / {{ q.limit }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="sb-hint">Пока нет данных об использовании — запустите сбор на Панели.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

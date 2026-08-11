@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Steal Bones — Панель{% endblock %}
+{% block content %}
+
+<h1 class="sb-page-title">Новый сбор</h1>
+<p class="sb-page-subtitle">Площадка → тип актива → сеть → коллекция/токен → целевое количество уникальных кошельков.</p>
+
+<div class="sb-tag">
+  <p class="sb-tag-label">Конфигурация задания</p>
+
+  <form method="POST" action="{{ url_for('run_job_route') }}">
+
+    <div class="sb-field">
+      <label for="asset_type">Тип актива</label>
+      <select name="asset_type" id="asset_type">
+        <option value="nft">NFT</option>
+        <option value="memecoin">Мемкоин</option>
+      </select>
+      <p class="sb-hint" id="asset_type_hint"></p>
+    </div>
+
+    <div class="sb-field">
+      <label for="platform">Площадка</label>
+      <select name="platform" id="platform"></select>
+      <p class="sb-hint">Список зависит от выбранного типа актива.</p>
+    </div>
+
+    <div class="sb-field">
+      <label for="network">Сеть</label>
+      <select name="network" id="network">
+        {% for net in networks %}
+        <option value="{{ net }}" {{ 'selected' if net == 'solana' else '' }}>{{ network_labels[net] }}</option>
+        {% endfor %}
+      </select>
+      <p class="sb-hint" id="network_hint">Solana — основная сеть для NFT/мемкоинов; остальные — крупнейшие EVM-сети плюс Bitcoin и Sui.</p>
+    </div>
+
+    <div class="sb-field sb-mono-input">
+      <label for="target" id="target_label">Коллекция</label>
+      <input type="text" name="target" id="target" placeholder="например: mad_lads" required autocomplete="off">
+      <p class="sb-hint" id="target_hint"></p>
+      <p class="sb-hint">Можно несколько через запятую — цель по кошелькам ниже станет общей на все сразу.</p>
+      <details class="sb-hint-details"><summary></summary>
+        <p>Полезно, если у одной коллекции физически не набирается нужное число кошельков — например, у Magic Eden есть собственный потолок глубины истории (см. README).</p>
+      </details>
+      <p class="sb-hint" id="collection_check_status"></p>
+      <div id="popular_collections_box" style="margin-top:10px; display:none;">
+        <p class="sb-hint" style="margin-bottom:6px;">Быстрый список для теста — клик добавляет коллекцию через запятую.</p>
+        <div id="popular_collections_list"></div>
+      </div>
+    </div>
+
+    <div class="sb-field sb-mono-input">
+      <label for="target_wallets" style="color: var(--gold); font-weight: bold; font-size: 1.1rem;">Целевое количество уникальных кошельков</label>
+      <input type="number" name="target_wallets" id="target_wallets" value="20" min="1" max="10000" step="1">
+      <p class="sb-hint" style="color: var(--moss); font-weight: 500;">
+        Софт будет парсить кошельки из маркетплейсов в режиме ультра-быстрого сбора и остановится строго при достижении этого целевого количества уникальных кошельков или исчерпания всей истории.
+      </p>
+      <details class="sb-hint-details" open><summary>Как работает парсинг</summary>
+        <p>Для поддерживаемых коллекций сначала собираются ранги (Phase 0) и активные листинги (Phase 1), а затем лента активности (Phase 2), что минимизирует количество запросов и ускоряет сбор уникальных адресов.</p>
+      </details>
+    </div>
+
+    <button type="submit" class="sb-btn">Запустить сбор</button>
+  </form>
+</div>
+
+<script>
+const PLATFORMS_BY_ASSET_TYPE = {{ platforms_by_asset_type | tojson }};
+const PLATFORM_LABELS = {{ platform_labels | tojson }};
+const NETWORK_LABELS = {{ network_labels | tojson }};
+const NETWORK_UNITS = {{ network_units | tojson }};
+const PLATFORM_NETWORKS = {{ platform_networks | tojson }};
+
+const POPULAR_COLLECTIONS = {
+  magic_eden: { solana: [
+    {symbol: "mad_lads", name: "Mad Lads"},
+    {symbol: "degods", name: "DeGods"},
+    {symbol: "y00ts", name: "y00ts"},
+    {symbol: "okay_bears", name: "Okay Bears"},
+    {symbol: "claynosaurz", name: "Claynosaurz"},
+    {symbol: "famous_fox_federation", name: "Famous Fox Federation"},
+    {symbol: "degenerate_ape_academy", name: "Degenerate Ape Academy"},
+    {symbol: "solana_monkey_business", name: "Solana Monkey Business"},
+  ]},
+  opensea: { ethereum: [
+    {symbol: "boredapeyachtclub", name: "Bored Ape Yacht Club"},
+    {symbol: "mutant-ape-yacht-club", name: "Mutant Ape Yacht Club"},
+    {symbol: "azuki", name: "Azuki"},
+    {symbol: "doodles-official", name: "Doodles"},
+    {symbol: "pudgypenguins", name: "Pudgy Penguins"},
+    {symbol: "clonex", name: "CloneX"},
+  ]},
+};
+
+const assetTypeHints = {
+  nft: "NFT — уникальные коллекционные токены (арт, PFP-коллекции, игровые предметы).",
+  memecoin: "Мемкоин — взаимозаменяемый токен без обеспечения, часто спекулятивный/хайповый (в Solana-экосистеме — токены на Pump.fun, Raydium и т.п.).",
+};
+const targetConfig = {
+  nft: { label: "Коллекция", placeholder: "например: mad_lads", hint: "Слаг/имя коллекции на выбранной площадке." },
+  memecoin: { label: "Токен (адрес)", placeholder: "например: адрес контракта токена", hint: "Mint-адрес (Solana) или адрес контракта токена." },
+};
+
+const assetTypeEl = document.getElementById('asset_type');
+const platformEl = document.getElementById('platform');
+const networkEl = document.getElementById('network');
+const networkHintEl = document.getElementById('network_hint');
+const targetEl = document.getElementById('target');
+const checkStatusEl = document.getElementById('collection_check_status');
+const popularBoxEl = document.getElementById('popular_collections_box');
+const popularListEl = document.getElementById('popular_collections_list');
+
+function refreshPlatforms() {
+  const type = assetTypeEl.value;
+  document.getElementById('asset_type_hint').textContent = assetTypeHints[type];
+  platformEl.innerHTML = '';
+  (PLATFORMS_BY_ASSET_TYPE[type] || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = PLATFORM_LABELS[p] || p;
+    platformEl.appendChild(opt);
+  });
+  const cfg = targetConfig[type];
+  document.getElementById('target_label').textContent = cfg.label;
+  targetEl.placeholder = cfg.placeholder;
+  document.getElementById('target_hint').textContent = cfg.hint;
+  refreshNetworkOptions();
+}
+
+function refreshNetworkOptions() {
+  const allowed = PLATFORM_NETWORKS[platformEl.value] || [];
+  const previousValue = networkEl.value;
+  networkEl.innerHTML = '';
+  allowed.forEach(net => {
+    const opt = document.createElement('option');
+    opt.value = net;
+    opt.textContent = NETWORK_LABELS[net] || net;
+    networkEl.appendChild(opt);
+  });
+  networkEl.value = allowed.includes(previousValue) ? previousValue : (allowed[0] || '');
+
+  if (allowed.length === 1) {
+    networkHintEl.textContent = `${PLATFORM_LABELS[platformEl.value]} работает только в сети ${NETWORK_LABELS[allowed[0]]} — других вариантов для этой площадки нет.`;
+  } else {
+    networkHintEl.textContent = `Сети, которые реально поддерживает ${PLATFORM_LABELS[platformEl.value]}.`;
+  }
+  refreshPopularCollections();
+}
+
+let checkTimer = null;
+function checkCollection() {
+  const platform = platformEl.value;
+  const rawParts = targetEl.value.split(',').map(s => s.trim()).filter(Boolean);
+  const isBatch = rawParts.length > 1;
+  const value = rawParts[0] || '';
+  if ((platform !== 'magic_eden' && platform !== 'opensea') || !value) {
+    checkStatusEl.textContent = '';
+    return;
+  }
+  checkStatusEl.textContent = 'проверяю…';
+  fetch(`/api/check-collection?platform=${encodeURIComponent(platform)}&target=${encodeURIComponent(value)}`)
+    .then(r => r.json())
+    .then(data => {
+      const suffix = isBatch ? ` (проверена только первая из ${rawParts.length} — остальные проверятся при запуске сбора)` : '';
+      if (data.status === 'found') {
+        checkStatusEl.textContent = `✓ найдена: ${data.name || data.symbol}${suffix}`;
+        checkStatusEl.style.color = 'var(--moss)';
+      } else if (data.status === 'not_found') {
+        checkStatusEl.textContent = `✗ «${value}» не найдена — проверьте точное написание на самой площадке${suffix}`;
+        checkStatusEl.style.color = 'var(--blood-bright)';
+      } else {
+        checkStatusEl.textContent = '';
+      }
+    })
+    .catch(() => { checkStatusEl.textContent = ''; });
+}
+
+function refreshPopularCollections() {
+  const list = (POPULAR_COLLECTIONS[platformEl.value] || {})[networkEl.value];
+  popularListEl.innerHTML = '';
+  if (!list || list.length === 0) {
+    popularBoxEl.style.display = 'none';
+    return;
+  }
+  popularBoxEl.style.display = 'block';
+  list.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sb-btn secondary';
+    btn.style = 'margin: 3px; font-size: 12px; padding: 5px 10px;';
+    btn.textContent = item.name;
+    btn.addEventListener('click', () => {
+      const existing = targetEl.value.split(',').map(s => s.trim()).filter(Boolean);
+      if (!existing.includes(item.symbol)) {
+        existing.push(item.symbol);
+      }
+      targetEl.value = existing.join(', ');
+      checkCollection();
+    });
+    popularListEl.appendChild(btn);
+  });
+}
+
+assetTypeEl.addEventListener('change', refreshPlatforms);
+platformEl.addEventListener('change', () => {
+  refreshNetworkOptions();
+  checkCollection();
+});
+networkEl.addEventListener('change', () => {
+  refreshPopularCollections();
+  checkCollection();
+});
+targetEl.addEventListener('input', () => {
+  clearTimeout(checkTimer);
+  checkTimer = setTimeout(checkCollection, 500);
+});
+refreshPlatforms();
+</script>
+
+{% endblock %}

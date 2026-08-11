@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Steal Bones — Идёт сбор{% endblock %}
+{% block content %}
+
+<h1 class="sb-page-title">Идёт сбор</h1>
+<p class="sb-page-subtitle" id="pg_subtitle">Софт работает в ультра-быстром режиме парсинга уникальных кошельков.</p>
+
+<div class="sb-tag" id="pg_running_box">
+  <div style="display:flex; align-items:center; gap:20px;">
+    <svg id="pg_skull" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.5"
+         style="width:52px; height:52px; color: var(--gold); flex-shrink:0;">
+      <ellipse cx="50" cy="42" rx="30" ry="27"/>
+      <path d="M22 55 Q22 78 32 92 L38 82 L44 92 L50 80 L56 92 L62 82 L68 92 Q78 78 78 55"/>
+      <circle cx="36" cy="40" r="8"/><circle cx="64" cy="40" r="8"/>
+      <path d="M50 46 L45 58 L55 58 Z"/>
+    </svg>
+    <div style="flex:1;">
+      <p id="pg_stage" style="margin:0 0 8px; font-weight:600; color: var(--bone);">Запуск…</p>
+      <div class="sb-quota-track" style="height:8px;">
+        <div class="sb-quota-fill" id="pg_bar" style="width:0%; transition: width 0.4s ease;"></div>
+      </div>
+    </div>
+    <span id="pg_percent" class="sb-mono" style="color: var(--gold); width:40px; text-align:right;">0%</span>
+  </div>
+
+  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; margin-top:22px; text-align: center;">
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+      <p class="sb-hint" style="margin:0 0 5px 0; font-size: 13px; uppercase: true;">Обработано страниц</p>
+      <p class="sb-balance" id="pg_page" style="font-size:28px; margin: 0; color: var(--gold); font-weight: bold;">0</p>
+    </div>
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+      <p class="sb-hint" style="margin:0 0 5px 0; font-size: 13px; uppercase: true;">Собрано записей</p>
+      <p class="sb-balance" id="pg_raw_records" style="font-size:28px; margin: 0; color: var(--gold); font-weight: bold;">0</p>
+    </div>
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+      <p class="sb-hint" style="margin:0 0 5px 0; font-size: 13px; uppercase: true;">Уникальных кошельков собрано</p>
+      <p class="sb-balance" id="pg_wallets" style="font-size:28px; margin: 0; color: var(--gold); font-weight: bold;">0</p>
+    </div>
+  </div>
+  <p class="sb-hint" id="pg_elapsed" style="margin-top:16px;">0с прошло</p>
+</div>
+
+<div class="sb-tag" id="pg_paused_box" style="display:none; border-color: var(--gold);">
+  <div style="display:flex; align-items:center; gap:20px;">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.5"
+         style="width:52px; height:52px; color: var(--gold); flex-shrink:0;">
+      <circle cx="50" cy="50" r="38"/>
+      <path d="M50 28 L50 52 L66 62" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div style="flex:1;">
+      <p style="margin:0 0 6px; font-weight:600; color: var(--gold);">Пауза — лимит запросов площадки</p>
+      <p class="sb-hint" id="pg_pause_reason" style="margin:0;"></p>
+    </div>
+    <div style="text-align:right;">
+      <p class="sb-balance" id="pg_pause_countdown" style="font-size:28px; margin:0; color: var(--gold);">0с</p>
+      <p class="sb-hint" style="margin:0;">до продолжения</p>
+    </div>
+  </div>
+  <p class="sb-hint" style="margin-top:16px;">
+    Прогресс не сброшен — поиск продолжится с того же места автоматически, ничего нажимать не нужно.
+    Можно закрыть эту вкладку и вернуться позже: сбор идёт в фоне, пока запущен main.py.
+  </p>
+</div>
+
+<div id="pg_done_box" style="display:none;"></div>
+
+<style>
+  @keyframes sb-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.94); } }
+  #pg_skull.sb-active { animation: sb-pulse 1.4s ease-in-out infinite; }
+</style>
+
+<script>
+document.getElementById('pg_skull').classList.add('sb-active');
+
+function renderDone(data) {
+  document.getElementById('pg_running_box').style.display = 'none';
+  const box = document.getElementById('pg_done_box');
+  box.style.display = 'block';
+
+  if (data.status === 'error') {
+    box.innerHTML = `
+      <div class="sb-flash warn">Сбой: ${data.error || 'неизвестная ошибка'}</div>
+      <a class="sb-btn secondary" href="/dashboard">Назад на Панель</a>`;
+    return;
+  }
+
+  const r = data.result || {};
+  let html = `<div class="sb-flash ok">${r.summary || 'Готово.'}</div>`;
+  (r.warnings || []).forEach(w => { html += `<div class="sb-flash warn">${w}</div>`; });
+  html += `<a class="sb-btn" href="/results?collection=${encodeURIComponent(r.target || '')}">Смотреть результаты</a>`;
+  box.innerHTML = html;
+}
+
+function poll() {
+  fetch('/api/job-status')
+    .then(r => r.json())
+    .then(data => {
+      const runningBox = document.getElementById('pg_running_box');
+      const pausedBox = document.getElementById('pg_paused_box');
+
+      if (data.status === 'paused') {
+        runningBox.style.display = 'none';
+        pausedBox.style.display = 'block';
+        document.getElementById('pg_pause_reason').textContent = data.pause_reason || '';
+        const secs = Math.ceil(data.wait_remaining_sec || 0);
+        document.getElementById('pg_pause_countdown').textContent =
+          secs >= 60 ? `${Math.floor(secs / 60)}м ${secs % 60}с` : `${secs}с`;
+        setTimeout(poll, 800);
+        return;
+      }
+      pausedBox.style.display = 'none';
+      runningBox.style.display = 'block';
+
+      document.getElementById('pg_stage').textContent = data.stage || '…';
+      document.getElementById('pg_bar').style.width = data.percent + '%';
+      document.getElementById('pg_percent').textContent = data.percent + '%';
+      document.getElementById('pg_page').textContent = data.page;
+      document.getElementById('pg_wallets').textContent = data.unique_wallets;
+      document.getElementById('pg_raw_records').textContent = data.raw_records;
+      document.getElementById('pg_elapsed').textContent = data.elapsed_sec + 'с прошло';
+
+      if (data.status === 'done' || data.status === 'error') {
+        renderDone(data);
+        return;
+      }
+      setTimeout(poll, 800);
+    })
+    .catch(() => setTimeout(poll, 1500));
+}
+poll();
+</script>
+
+{% endblock %}
